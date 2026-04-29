@@ -1,0 +1,43 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+
+a = Analysis(
+    ['app\\main.py'],
+    pathex=[],
+    binaries=[],
+    datas=[('web', 'web'), ('app\\templates', 'app\\templates'), ('app\\rules.json', 'app')],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[
+        'tkinter', 'unittest', 'pydoc', 'distutils', 'setuptools',
+        'email', 'http', 'xmlrpc', 'pdb', 'cProfile', 'profile',
+        'lib2to3', 'multiprocessing', 'concurrent.futures',
+        'test', 'tests', 'idlelib', 'turtledemo', 'ensurepip',
+    ],
+    noarchive=False,
+    optimize=2,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    [],
+    name='prompt-buddy',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=True,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)

@@ -1,0 +1,76 @@
+[
+  {
+    "id": "dangerous_system_call",
+    "pattern": "os\\.system|subprocess\\.(call|run|Popen|check_output|check_call)",
+    "description": "包含潜在危险的系统/子进程调用",
+    "deduction": 50
+  },
+  {
+    "id": "dynamic_exec",
+    "pattern": "\\beval\\s*\\(|\\bexec\\s*\\(",
+    "description": "包含动态执行语句(eval/exec)，存在代码注入风险",
+    "deduction": 40
+  },
+  {
+    "id": "network_request",
+    "pattern": "requests\\.(get|post|put|delete|head|patch)\\s*\\(|urllib\\.request|socket\\.create_connection|urllib2\\.",
+    "description": "包含网络外联请求，可能存在数据泄露风险",
+    "deduction": 30
+  },
+  {
+    "id": "file_write",
+    "pattern": "\\bopen\\s*\\(.*['\"]w[ab+]?['\"]",
+    "description": "包含文件写入操作，可能导致文件被篡改",
+    "deduction": 25
+  },
+  {
+    "id": "dynamic_import",
+    "pattern": "\\b__import__\\s*\\(|importlib\\.import_module|\\bcompile\\s*\\(",
+    "description": "包含动态导入/编译，存在代码注入风险",
+    "deduction": 35
+  },
+  {
+    "id": "deserialization",
+    "pattern": "pickle\\.(load|loads)|yaml\\.load\\b|marshal\\.(load|loads)",
+    "description": "包含不安全的反序列化操作，可能导致远程代码执行",
+    "deduction": 50
+  },
+  {
+    "id": "credential_leak",
+    "pattern": "(?i)(api_key|access_token|password|secret|credential)\\s*=\\s*['\"]",
+    "description": "代码中包含硬编码的凭据信息",
+    "deduction": 45
+  },
+  {
+    "id": "dangerous_module",
+    "pattern": "\\bimport\\s+(ctypes|shutil|platform|getpass)\\b",
+    "description": "使用了可能涉及系统底层的模块",
+    "deduction": 15
+  },
+  {
+    "id": "output_too_short",
+    "description": "输出过短，可能未生成有效内容",
+    "deduction": 20,
+    "type": "length",
+    "min_length": 10
+  },
+  {
+    "id": "output_too_long",
+    "description": "输出过长，可能包含冗余或不必要的内容",
+    "deduction": 10,
+    "type": "length",
+    "max_length": 5000
+  },
+  {
+    "id": "shell_injection",
+    "pattern": "\\bos\\.popen\\b|\\bpopen\\s*\\(|commands\\.getoutput",
+    "description": "包含 shell 命令执行，存在命令注入风险",
+    "deduction": 45
+  },
+  {
+    "id": "path_traversal",
+    "pattern": "\\.\\./|\\.\\.\\\\|os\\.chdir\\b",
+    "description": "包含路径遍历或目录切换操作",
+    "deduction": 20
+  }
+]

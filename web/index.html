@@ -167,6 +167,40 @@
     .hint { margin-left: auto; color: var(--muted); font-size: 12px; }
     .danger { color: var(--danger); }
 
+    .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--line);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    .spinner.show { display: inline-block; }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-badge {
+      display: none;
+      background: var(--danger);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .error-badge.show { display: inline-block; }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #statusMsg.error { color: var(--danger); font-weight: 600; }
+
     .result-grid {
       margin-top: 12px;
       display: grid;
@@ -277,6 +311,33 @@
       gap: 8px;
     }
 
+    .history-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .history-item:hover { background: var(--panel-soft); }
+    .history-item .hi-time { color: var(--muted); }
+    .history-item .hi-meta { color: var(--muted); font-size: 11px; }
+    .hi-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .hi-badge.mock { background: var(--line); color: var(--muted); }
+    .hi-badge.api { background: var(--primary); color: #2b130c; }
+    .hi-badge.ok { background: var(--success); color: #0c2b13; }
+    .hi-badge.warn { background: var(--danger); color: #fff; }
+
     @media (max-width: 980px) {
       .workspace, .result-grid {
         grid-template-columns: 1fr;
@@ -290,7 +351,7 @@
     <header class="topbar">
       <div class="title">Prompt Buddy 控制台</div>
       <button class="ghost" onclick="openSettings()">设置</button>
-      <div class="status"><span class="dot"></span><span id="healthLabel">检查服务中...</span></div>
+      <div class="status"><span class="dot"></span><span id="healthLabel">检查服务中...</span><span class="spinner" id="genSpinner"></span><span class="error-badge" id="errorBadge"></span></div>
     </header>
 
     <section class="workspace">
@@ -301,6 +362,14 @@
         </label>
         <label>示例（Examples，每行一条，最多 5 条）
           <textarea id="examples" placeholder="with open('file.txt') as f:&#10;    print(len(f.readlines()))"></textarea>
+        </label>
+        <label style="max-width:200px">输出格式
+          <select id="formatSelect">
+            <option value="code">代码 (Code)</option>
+            <option value="json">JSON</option>
+            <option value="markdown">Markdown</option>
+            <option value="text">文本 (Text)</option>
+          </select>
         </label>
         <div class="actions">
           <button class="primary" id="runBtn" onclick="runGenerate()">生成</button>
@@ -333,6 +402,14 @@
       <div class="card">
         <h3>生成输出</h3>
         <pre id="outputOut"></pre>
+      </div>
+    </section>
+
+    <section class="card" id="historyCard" style="display:none">
+      <h3>生成历史 <span style="font-weight:400;font-size:11px;color:var(--muted)">(点击条目恢复)</span></h3>
+      <div id="historyList"></div>
+      <div class="actions" style="margin-top:8px">
+        <button class="ghost" onclick="clearHistory()">清空历史</button>
       </div>
     </section>
   </div>
@@ -402,6 +479,7 @@
 
     const intentEl = document.getElementById("intent");
     const examplesEl = document.getElementById("examples");
+    const formatSelect = document.getElementById("formatSelect");
     const runBtn = document.getElementById("runBtn");
     const countHint = document.getElementById("countHint");
     const healthLabel = document.getElementById("healthLabel");
@@ -414,6 +492,8 @@
     const promptOut = document.getElementById("promptOut");
     const outputOut = document.getElementById("outputOut");
     const overlay = document.getElementById("settingsOverlay");
+    const genSpinner = document.getElementById("genSpinner");
+    const errorBadge = document.getElementById("errorBadge");
 
     const apiEnabledInput = document.getElementById("apiEnabledInput");
     const apiKeyInput = document.getElementById("apiKeyInput");
@@ -465,6 +545,7 @@
 
     function clearResult() {
       statusMsg.textContent = "等待执行";
+      statusMsg.classList.remove("error");
       scoreValue.textContent = "-";
       issuesValue.textContent = "[]";
       engineValue.textContent = "-";
@@ -472,6 +553,33 @@
       exampleSourceValue.textContent = "-";
       promptOut.textContent = "";
       outputOut.textContent = "";
+      hideLoading();
+      hideError();
+    }
+
+    function showLoading() {
+      genSpinner.classList.add("show");
+      runBtn.disabled = true;
+    }
+
+    function hideLoading() {
+      genSpinner.classList.remove("show");
+      runBtn.disabled = false;
+    }
+
+    function showError(msg) {
+      errorBadge.textContent = msg;
+      errorBadge.classList.add("show");
+    }
+
+    function hideError() {
+      errorBadge.classList.remove("show");
+      errorBadge.textContent = "";
+    }
+
+    function setStatusError(msg) {
+      statusMsg.innerHTML = `<span class="danger">${msg}</span>`;
+      statusMsg.classList.add("error");
     }
 
     function openSettings() {
@@ -522,8 +630,10 @@
         if (!r.ok) throw new Error("HTTP " + r.status);
         const data = await r.json();
         healthLabel.textContent = data.status === "ok" ? "服务正常" : "服务异常";
+        hideError();
       } catch {
         healthLabel.textContent = "服务不可用";
+        showError("离线");
       }
     }
 
@@ -543,12 +653,14 @@
     async function runGenerate() {
       const intent = intentEl.value.trim();
       const examples = parseExamples();
-      runBtn.disabled = true;
-      statusMsg.textContent = "生成中...";
+      showLoading();
+      hideError();
+      statusMsg.textContent = settings.apiEnabled ? "正在调用模型 API..." : "生成中...";
       try {
         const payload = {
           intent,
           examples,
+          format: formatSelect.value,
           settings: {
             apiEnabled: settings.apiEnabled,
             apiKey: settings.apiKey,
@@ -563,7 +675,19 @@
         });
         const data = await r.json();
         if (!r.ok) {
-          statusMsg.innerHTML = `<span class="danger">请求失败: ${data.error || ("HTTP " + r.status)}</span>`;
+          const errMsg = data.error || `HTTP ${r.status}`;
+          if (r.status === 502) {
+            statusMsg.textContent = "模型接口调用失败";
+            showError("API 错误");
+          } else if (r.status === 400) {
+            statusMsg.textContent = "请求参数错误";
+            showError("参数错误");
+          } else {
+            statusMsg.textContent = "请求失败";
+            showError(r.status);
+          }
+          setStatusError(errMsg);
+          hideLoading();
           return;
         }
 
@@ -572,13 +696,31 @@
         engineValue.textContent = data.meta?.engine || "-";
         modelValue.textContent = data.meta?.model || "-";
         exampleSourceValue.textContent = data.meta?.used_default_examples ? "默认示例" : "自定义示例";
-        promptOut.textContent = data.prompt || "";
+        promptOut.textContent = data.system_prompt && data.user_text
+          ? `【System】\n${data.system_prompt || ""}\n\n【User】\n${data.user_text || ""}`
+          : (data.prompt || "");
         outputOut.textContent = data.output || "";
+        statusMsg.classList.remove("error");
         statusMsg.textContent = "执行完成";
+        hideError();
+        saveHistoryEntry({
+          time: Date.now(),
+          intent,
+          format: formatSelect.value,
+          engine: data.meta?.engine || "mock",
+          model: data.meta?.model || "mock",
+          score: data.score,
+          issues: data.issues,
+          prompt: data.prompt,
+          system_prompt: data.system_prompt,
+          user_text: data.user_text,
+          output: data.output
+        });
       } catch (err) {
-        statusMsg.innerHTML = `<span class="danger">请求异常: ${err}</span>`;
+        showError("网络异常");
+        setStatusError(`请求异常: ${err.message || err}`);
       } finally {
-        runBtn.disabled = false;
+        hideLoading();
       }
     }
 
@@ -591,10 +733,72 @@
       if (settings.theme === "system") applyTheme("system");
     });
 
+    const HISTORY_KEY = "prompt-buddy.history";
+    const MAX_HISTORY = 20;
+
+    function loadHistory() {
+      try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
+      catch { return []; }
+    }
+
+    function saveHistoryEntry(entry) {
+      const hist = loadHistory();
+      hist.unshift(entry);
+      if (hist.length > MAX_HISTORY) hist.length = MAX_HISTORY;
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+      renderHistory();
+    }
+
+    function clearHistory() {
+      localStorage.removeItem(HISTORY_KEY);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const hist = loadHistory();
+      const card = document.getElementById("historyCard");
+      const list = document.getElementById("historyList");
+      card.style.display = hist.length ? "block" : "none";
+      list.innerHTML = hist.map((h, i) => {
+        const shortIntent = h.intent.length > 40 ? h.intent.slice(0, 40) + "..." : h.intent;
+        const date = new Date(h.time).toLocaleString("zh-CN");
+        const engineBadge = h.engine === "api"
+          ? `<span class="hi-badge api">API</span>`
+          : `<span class="hi-badge mock">Mock</span>`;
+        const scoreBadge = h.score >= 80
+          ? `<span class="hi-badge ok">${h.score}</span>`
+          : `<span class="hi-badge warn">${h.score}</span>`;
+        return `<div class="history-item" onclick="restoreHistory(${i})" title="${h.intent.replace(/"/g, '&quot;')}">
+          <div><strong>${shortIntent}</strong></div>
+          <div class="hi-time">${date}</div>
+          <div class="hi-meta">${h.format} &middot; ${h.model} &middot; ${engineBadge} ${scoreBadge}</div>
+        </div>`;
+      }).join("");
+    }
+
+    function restoreHistory(index) {
+      const hist = loadHistory();
+      const entry = hist[index];
+      if (!entry) return;
+      intentEl.value = entry.intent;
+      formatSelect.value = entry.format || "code";
+      promptOut.textContent = entry.prompt || "";
+      outputOut.textContent = entry.output || "";
+      scoreValue.textContent = String(entry.score ?? "-");
+      issuesValue.textContent = JSON.stringify(entry.issues || []);
+      engineValue.textContent = entry.engine || "-";
+      modelValue.textContent = entry.model || "-";
+      exampleSourceValue.textContent = "-";
+      statusMsg.textContent = "已恢复历史记录";
+      statusMsg.classList.remove("error");
+      updateCount();
+    }
+
     applyTheme(settings.theme);
     clearResult();
     updateCount();
     checkHealth();
+    renderHistory();
   </script>
 </body>
 </html>

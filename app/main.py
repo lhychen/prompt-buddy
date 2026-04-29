@@ -1,6 +1,9 @@
 import json
+import logging
 import os
+import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -9,6 +12,14 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from prompt_optimizer import optimize_prompt
 from verifier import verify_output
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    stream=sys.stderr,
+)
+logger = logging.getLogger("prompt-buddy")
 
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     RUNTIME_BASE_DIR = Path(sys._MEIPASS)
@@ -49,8 +60,31 @@ def load_default_examples():
     return examples
 
 
-def build_mock_output(intent):
-    return f"# 模拟代码 for intent: {intent}\nprint('hello world')\n"
+def build_mock_output(intent, output_format="code"):
+    fmt_label = {"code": "代码", "json": "JSON", "markdown": "Markdown", "text": "文本"}.get(output_format, "代码")
+    return f"# 模拟{fmt_label}输出 for intent: {intent}\nprint('hello world')\n"
+
+
+PROMPT_INJECTION_PATTERNS = [
+    (r"(?i)ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|messages?)", "尝试覆盖之前的指令"),
+    (r"(?i)you\s+are\s+now\s+(a\s+)?(DAN|developer\s+mode|jailbreak)", "尝试绕过角色限制"),
+    (r"(?i)system\s*prompt\s*(is|:|=)", "疑似泄露或篡改系统提示词"),
+    (r"(?i)pretend\s+you\s+are\s+(not|no\s+longer)", "尝试伪装身份"),
+    (r"(?i)forget\s+(all\s+)?(your\s+)?(training|instructions?|rules?)", "尝试清除安全约束"),
+    (r"(?i)(output|print|show|display|repeat)\s+(your\s+)?(system|base|initial)\s+(prompt|instructions?|message)", "尝试提取系统提示词"),
+    (r"(?i)from\s+now\s+on\s+you\s+(are|will|must)", "尝试重新定义行为"),
+    (r"(?i)do\s+not\s+(follow|obey|listen)", "尝试禁用安全指令"),
+    (r"(?i)you\s+must\s+(always|never)\s+(respond|answer|reply)", "尝试强制行为覆盖"),
+]
+
+
+def check_prompt_injection(user_text):
+    """Return (is_safe, risks) — True means safe, risks is a list of descriptions."""
+    risks = []
+    for pattern, desc in PROMPT_INJECTION_PATTERNS:
+        if re.search(pattern, user_text):
+            risks.append(desc)
+    return len(risks) == 0, risks
 
 
 def normalize_base_url(base_url):
@@ -60,7 +94,7 @@ def normalize_base_url(base_url):
     return cleaned.rstrip("/")
 
 
-def call_model_via_api(prompt, settings):
+def call_model_via_api(system_prompt, user_text, settings):
     api_key = str(settings.get("apiKey", "")).strip()
     if not api_key:
         raise ValueError("已启用 API 接入，但 API 密钥为空")
@@ -77,8 +111,8 @@ def call_model_via_api(prompt, settings):
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": "你是一个代码助理，只返回可运行代码。"},
-            {"role": "user", "content": prompt},
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_text},
         ],
         "temperature": 0.2,
     }
@@ -145,6 +179,7 @@ def generate():
     if not request.is_json:
         return jsonify({"error": "请求必须为 application/json"}), 400
 
+    t_start = time.time()
     data = request.get_json(silent=True) or {}
     intent = str(data.get("intent", "")).strip()
     if not intent:
@@ -168,38 +203,72 @@ def generate():
     if not isinstance(settings, dict):
         return jsonify({"error": "settings 必须是对象"}), 400
 
+    role = str(data.get("role") or "").strip() or None
+    output_format = str(data.get("format") or "code").strip()
+    if output_format not in ("code", "json", "markdown", "text"):
+        output_format = "code"
+    constraints = data.get("constraints", [])
+    if constraints is None:
+        constraints = []
+    if not isinstance(constraints, list):
+        return jsonify({"error": "constraints 必须是字符串数组"}), 400
+    if any(not isinstance(item, str) for item in constraints):
+        return jsonify({"error": "constraints 必须是字符串数组"}), 400
+    constraints = [c.strip() for c in constraints if c.strip()]
+
     examples = [item.strip() for item in examples_raw if item.strip()]
     used_default_examples = False
     if not examples:
         examples = load_default_examples()[:MAX_EXAMPLES]
         used_default_examples = True
 
-    prompt = optimize_prompt(intent, examples)
+    t0 = time.time()
+    prompt, system_prompt, user_text, num_examples = optimize_prompt(
+        intent, examples, role=role, output_format=output_format, constraints=constraints
+    )
     api_enabled = bool(settings.get("apiEnabled"))
     engine = "mock"
     model_name = "mock"
     if api_enabled:
+        safe, risks = check_prompt_injection(user_text)
+        if not safe:
+            logger.warning("Prompt injection detected risks=%s intent_len=%d", risks, len(intent))
+            return jsonify({
+                "error": "检测到 Prompt 注入风险",
+                "risks": risks,
+                "prompt": prompt,
+            }), 400
         try:
-            model_output, model_name = call_model_via_api(prompt, settings)
+            model_output, model_name = call_model_via_api(system_prompt, user_text, settings)
             engine = "api"
+            logger.info("API call succeeded model=%s latency=%.2fs", model_name, time.time() - t0)
         except ValueError as exc:
+            logger.warning("API validation error: %s", exc)
             return jsonify({"error": str(exc)}), 400
         except RuntimeError as exc:
+            logger.error("API call failed: %s", exc)
             return jsonify({"error": str(exc)}), 502
     else:
-        model_output = build_mock_output(intent)
+        model_output = build_mock_output(intent, output_format)
+        logger.info("Mock generation intent_len=%d format=%s examples=%d", len(intent), output_format, num_examples)
 
     score, issues = verify_output(model_output)
+    if issues:
+        logger.info("Verification issues=%d score=%d rules=%s", len(issues), score, issues)
+    logger.info("Request complete total=%.3fs engine=%s", time.time() - t_start, engine)
     return jsonify({
         "prompt": prompt,
+        "system_prompt": system_prompt,
+        "user_text": user_text,
         "output": model_output,
         "score": score,
         "issues": issues,
         "meta": {
             "engine": engine,
             "model": model_name,
+            "output_format": output_format,
             "used_default_examples": used_default_examples,
-            "examples_count": len(examples),
+            "examples_count": num_examples,
         },
     })
 
