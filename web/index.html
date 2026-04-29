@@ -1,57 +1,367 @@
 <!doctype html>
-<html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prompt Buddy</title>
+  <style>
+    :root {
+      --bg: #111318;
+      --panel: #171a21;
+      --panel-2: #1d212b;
+      --line: #2d3340;
+      --text: #e8ebf1;
+      --muted: #a5adbc;
+      --brand: #d87a58;
+      --ok: #66d191;
+      --bad: #f08a8a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: radial-gradient(circle at left top, #1a1f29, var(--bg) 45%);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
+    .left {
+      border-right: 1px solid var(--line);
+      background: #0f1116;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .title {
+      font-weight: 700;
+      font-size: 16px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      width: fit-content;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 8px var(--ok);
+    }
+    .info {
+      margin-top: auto;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .main {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+      padding: 14px;
+    }
+    .topbar {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: rgba(16, 19, 25, .55);
+      font-weight: 600;
+    }
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      padding: 12px;
+    }
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .35px;
+    }
+    textarea, pre {
+      width: 100%;
+      margin: 0;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      outline: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    textarea { resize: vertical; min-height: 112px; }
+    textarea:focus { border-color: #7e85a0; }
+    .actions {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 9px;
+      padding: 8px 13px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #21130f;
+    }
+    .hint {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .result-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 10px;
+      min-height: 0;
+    }
+    .stack {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 10px;
+      min-height: 0;
+    }
+    .kvs {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 10px;
+      font-size: 13px;
+    }
+    .kvs .k { color: var(--muted); }
+    .pill {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-right: 6px;
+    }
+    .pill.good { color: var(--ok); border-color: #2f6f4c; }
+    .pill.bad { color: var(--bad); border-color: #704545; }
+    .code {
+      height: 100%;
+      min-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 1080px) {
+      .app { grid-template-columns: 1fr; }
+      .left { display: none; }
+      .input-grid, .result-grid { grid-template-columns: 1fr; }
+      .stack { grid-template-rows: auto auto auto; }
+      .hint { margin-left: 0; }
+    }
+  </style>
+</head>
 <body>
-  <h3>Prompt Buddy</h3>
-  <p>输入你的需求，系统会优化提示并返回示例代码。</p>
-  <textarea id="intent" rows="4" cols="60" maxlength="500">列出读取文件并计算行数的 Python 示例</textarea><br/>
-  <textarea id="examples" rows="4" cols="60" placeholder="可选：每行一条示例"></textarea><br/>
-  <button onclick="send()">生成</button>
-  <button onclick="loadExamples()">加载默认示例</button>
-  <pre id="out"></pre>
-<script>
-function getExamples(){
-  const text = document.getElementById('examples').value.trim();
-  if (!text) return [];
-  return text.split('\n').map(s => s.trim()).filter(Boolean);
-}
+  <div class="app">
+    <aside class="left">
+      <div class="title">Prompt Buddy</div>
+      <div class="status"><span class="dot"></span><span id="healthLabel">检查服务状态中</span></div>
+      <div class="info">
+        功能模块：
+        <br>- Prompt 优化
+        <br>- 代码生成（Mock）
+        <br>- 风险评分与问题检测
+        <br>- 元数据回显
+      </div>
+    </aside>
 
-async function loadExamples(){
-  const out = document.getElementById('out');
-  out.textContent = '加载中...';
-  try{
-    const r = await fetch('/api/examples');
-    if(!r.ok){
-      throw new Error('HTTP ' + r.status);
-    }
-    const j = await r.json();
-    document.getElementById('examples').value = (j.examples || []).join('\n');
-    out.textContent = '已加载默认示例';
-  }catch(err){
-    out.textContent = '加载示例失败: ' + err;
-  }
-}
+    <main class="main">
+      <div class="topbar">Prompt Pipeline Dashboard</div>
 
-async function send(){
-  const out = document.getElementById('out');
-  const intent = document.getElementById('intent').value;
-  const examples = getExamples();
-  out.textContent = '生成中...';
-  try{
-    const r = await fetch('/generate',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({intent, examples})
-    });
-    const j = await r.json();
-    if(!r.ok){
-      out.textContent = '请求失败: ' + (j.error || ('HTTP ' + r.status));
-      return;
+      <section class="input-grid">
+        <div class="card">
+          <h3>Intent 输入</h3>
+          <textarea id="intent" maxlength="500">列出读取文件并计算行数的 Python 示例</textarea>
+        </div>
+        <div class="card">
+          <h3>Examples 输入（每行一条，最多5条）</h3>
+          <textarea id="examples" placeholder="with open('file.txt') as f:&#10;    print(len(f.readlines()))"></textarea>
+        </div>
+        <div class="actions">
+          <button class="primary" id="runBtn" onclick="runGenerate()">执行 /generate</button>
+          <button onclick="loadExamples()">加载 /api/examples</button>
+          <button onclick="clearResult()">清空结果</button>
+          <span class="hint" id="countHint">0/500</span>
+        </div>
+      </section>
+
+      <section class="result-grid">
+        <div class="stack">
+          <div class="card">
+            <h3>评分与问题</h3>
+            <div class="kvs">
+              <div class="k">score</div><div id="scoreValue">-</div>
+              <div class="k">issues</div><div id="issuesValue">[]</div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>meta</h3>
+            <div id="metaTags">-</div>
+          </div>
+          <div class="card">
+            <h3>请求/状态</h3>
+            <div class="msg" id="statusMsg">等待执行</div>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="card">
+            <h3>优化后的 Prompt</h3>
+            <pre class="code" id="promptOut"></pre>
+          </div>
+          <div class="card">
+            <h3>生成输出</h3>
+            <pre class="code" id="outputOut"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const intentEl = document.getElementById("intent");
+    const examplesEl = document.getElementById("examples");
+    const countHint = document.getElementById("countHint");
+    const healthLabel = document.getElementById("healthLabel");
+    const statusMsg = document.getElementById("statusMsg");
+    const scoreValue = document.getElementById("scoreValue");
+    const issuesValue = document.getElementById("issuesValue");
+    const metaTags = document.getElementById("metaTags");
+    const promptOut = document.getElementById("promptOut");
+    const outputOut = document.getElementById("outputOut");
+    const runBtn = document.getElementById("runBtn");
+
+    function updateCount() {
+      countHint.textContent = `${intentEl.value.length}/500`;
     }
-    out.textContent = JSON.stringify(j,null,2);
-  }catch(err){
-    out.textContent = '请求失败: ' + err;
-  }
-}
-</script>
+
+    function parseExamples() {
+      return examplesEl.value
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 5);
+    }
+
+    function renderMeta(meta = {}) {
+      const tags = [];
+      if (meta.engine) tags.push(`<span class="pill">${meta.engine}</span>`);
+      if (typeof meta.examples_count === "number") tags.push(`<span class="pill">examples:${meta.examples_count}</span>`);
+      if (meta.used_default_examples === true) {
+        tags.push(`<span class="pill good">default examples</span>`);
+      } else if (meta.used_default_examples === false) {
+        tags.push(`<span class="pill">custom examples</span>`);
+      }
+      metaTags.innerHTML = tags.length ? tags.join("") : "-";
+    }
+
+    function clearResult() {
+      scoreValue.textContent = "-";
+      issuesValue.textContent = "[]";
+      metaTags.textContent = "-";
+      promptOut.textContent = "";
+      outputOut.textContent = "";
+      statusMsg.textContent = "等待执行";
+    }
+
+    async function checkHealth() {
+      try {
+        const r = await fetch("/healthz");
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const data = await r.json();
+        healthLabel.textContent = data.status === "ok" ? "服务正常" : "服务异常";
+      } catch (err) {
+        healthLabel.textContent = "服务不可用";
+      }
+    }
+
+    async function loadExamples() {
+      statusMsg.textContent = "加载默认示例中...";
+      try {
+        const r = await fetch("/api/examples");
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const data = await r.json();
+        examplesEl.value = (data.examples || []).join("\n");
+        statusMsg.textContent = "默认示例加载完成";
+      } catch (err) {
+        statusMsg.textContent = "加载失败: " + err;
+      }
+    }
+
+    async function runGenerate() {
+      const intent = intentEl.value.trim();
+      const examples = parseExamples();
+      runBtn.disabled = true;
+      statusMsg.textContent = "请求 /generate 中...";
+      try {
+        const r = await fetch("/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ intent, examples })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          statusMsg.textContent = "请求失败: " + (data.error || ("HTTP " + r.status));
+          return;
+        }
+        scoreValue.textContent = String(data.score ?? "-");
+        issuesValue.textContent = JSON.stringify(data.issues || []);
+        renderMeta(data.meta || {});
+        promptOut.textContent = data.prompt || "";
+        outputOut.textContent = data.output || "";
+        statusMsg.textContent = "执行完成";
+      } catch (err) {
+        statusMsg.textContent = "请求异常: " + err;
+      } finally {
+        runBtn.disabled = false;
+      }
+    }
+
+    intentEl.addEventListener("input", updateCount);
+    updateCount();
+    checkHealth();
+    clearResult();
+  </script>
 </body>
 </html>
