@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -7,9 +8,14 @@ from flask import Flask, jsonify, request, send_from_directory
 from prompt_optimizer import optimize_prompt
 from verifier import verify_output
 
-BASE_DIR = Path(__file__).resolve().parent
-WEB_DIR = BASE_DIR.parent / "web"
-EXAMPLES_FILE = BASE_DIR / "templates" / "example_prompts.json"
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    RUNTIME_BASE_DIR = Path(sys._MEIPASS)
+    WEB_DIR = RUNTIME_BASE_DIR / "web"
+    EXAMPLES_FILE = RUNTIME_BASE_DIR / "app" / "templates" / "example_prompts.json"
+else:
+    BASE_DIR = Path(__file__).resolve().parent
+    WEB_DIR = BASE_DIR.parent / "web"
+    EXAMPLES_FILE = BASE_DIR / "templates" / "example_prompts.json"
 
 
 app = Flask(__name__, static_folder=str(WEB_DIR))
