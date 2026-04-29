@@ -30,6 +30,10 @@ jobs:
           import main
           c = main.app.test_client()
           assert c.get("/healthz").status_code == 200
-          assert c.post("/generate", json={"intent":"demo","examples":[],"settings":{"apiEnabled":False}}).status_code == 200
+          resp = c.post("/generate", json={"intent":"demo"})
+          assert resp.status_code == 200
+          data = resp.get_json()
+          assert "prompt" in data
+          assert "style_features" in data
           print("CI checks passed")
           PY

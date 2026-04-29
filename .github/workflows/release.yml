@@ -33,7 +33,6 @@ jobs:
           pyinstaller --noconfirm --clean --onefile --name prompt-buddy `
             --add-data "web;web" `
             --add-data "app\templates;app\templates" `
-            --add-data "app\rules.json;app" `
             app\main.py
 
       - name: 创建 Release 并上传资产

@@ -1,71 +1,217 @@
-def optimize_prompt(intent, examples, role=None, output_format="code", constraints=None):
-    """Build a structured prompt with optional role, format, and constraints.
+import re
+
+# ── Style detection helpers ──
+
+def _detect_tone(text):
+    """Detect tone: academic, casual, technical, neutral."""
+    features = []
+
+    # Academic indicators
+    academic_words = [
+        "研究", "分析", "探讨", "结论", "表明", "综上所述", "基于",
+        "therefore", "consequently", "furthermore", "nevertheless",
+        "本研究", "本文", "显著", "相关性",
+    ]
+    ac_count = sum(text.count(w) for w in academic_words)
+    avg_sent_len = _avg_sentence_length(text)
+    passive_patterns = ["被", "所", "得以", "is made", "are considered", "was conducted"]
+    passive_count = sum(text.lower().count(p) for p in passive_patterns)
+
+    if ac_count >= 3 or (avg_sent_len > 25 and passive_count >= 2):
+        features.append("学术口吻")
+    elif ac_count >= 1 and avg_sent_len > 20:
+        features.append("正式论述")
+
+    # Casual indicators
+    casual_words = [
+        "你", "我", "吧", "啦", "哦", "哈", "嘛", "呀",
+        "hey", "yeah", "btw", "cool", "awesome",
+        "!", "？", "~",
+    ]
+    casual_count = sum(text.count(w) for w in casual_words)
+    if casual_count >= 4 and avg_sent_len < 15:
+        features.append("口语化/友好")
+
+    # Technical indicators
+    tech_patterns = [
+        r"\b(api|sdk|cli|http|json|yml|xml|sql|css|html)\b",
+        r"```", r"##\s", r"\|\s+\|", r"npm\s|pip\s|git\s|docker\s",
+        r"\b(function|class|def|import|return|const|let|var)\b",
+    ]
+    tech_count = sum(len(re.findall(p, text, re.IGNORECASE)) for p in tech_patterns)
+    if tech_count >= 3:
+        features.append("技术风格")
+
+    if not features:
+        features.append("中性叙述")
+
+    return features
+
+
+def _detect_format(text):
+    """Detect format: bullet points, paragraphs, Q&A, dialogue."""
+    features = []
+
+    lines = text.strip().split("\n")
+    bullet_lines = sum(1 for l in lines if re.match(r"^\s*[-*•#]\s|^\s*\d+[.、)\s]", l))
+    if bullet_lines >= 2:
+        features.append("分点列举")
+
+    if len(lines) >= 4 and bullet_lines < 2:
+        features.append("段落叙述")
+
+    if re.search(r"[问Q][：:].*[答A][：:]", text):
+        features.append("问答式")
+
+    has_dialogue = len(re.findall(r"[「""].*[」""]", text))
+    if has_dialogue >= 2:
+        features.append("对话式")
+
+    if not features:
+        features.append("段落叙述")
+
+    return features
+
+
+def _detect_person(text):
+    """Detect person perspective."""
+    first = len(re.findall(r"\b[我I我们we我的my我们的our]\b", text))
+    third = len(re.findall(r"\b[它他她他们it he she they its his her their]\b", text, re.IGNORECASE))
+    if first > third * 2:
+        return ["第一人称"]
+    elif third > first * 2:
+        return ["第三人称"]
+    return ["通用视角"]
+
+
+def _detect_language(text):
+    """Detect primary language."""
+    cn = len(re.findall(r"[\u4e00-\u9fff]", text))
+    en = len(re.findall(r"[a-zA-Z]+", text))
+    if cn > en * 3:
+        return ["中文"]
+    elif en > cn * 3:
+        return ["English"]
+    return ["中英混合"]
+
+
+def _avg_sentence_length(text):
+    sentences = re.split(r"[。！？.!?\n]", text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+    if not sentences:
+        return 0
+    return sum(len(s) for s in sentences) / len(sentences)
+
+
+def analyze_style(style_text):
+    """Analyze a style reference text and return detected features."""
+    if not style_text or not str(style_text).strip():
+        return []
+    text = str(style_text).strip()
+    features = []
+    features.extend(_detect_tone(text))
+    features.extend(_detect_format(text))
+    features.extend(_detect_person(text))
+    features.extend(_detect_language(text))
+    return features
+
+
+# ── Prompt builder ──
+
+def _style_to_role(features):
+    """Map style features to a system role description."""
+    tone_role = {
+        "学术口吻": "你是一位严谨的学术研究者，使用正式、客观的语言",
+        "正式论述": "你是一位专业的论述者，使用正式、有条理的语言",
+        "口语化/友好": "你是一位友好的助手，使用亲切、易懂的语言",
+        "技术风格": "你是一位资深技术专家，使用准确、专业的技术语言",
+        "中性叙述": "你是一位中立的助理，使用简洁明了的语言",
+    }
+    format_role = {
+        "分点列举": "请使用分点或编号的形式组织回答",
+        "段落叙述": "请使用自然段落的形式组织回答",
+        "问答式": "请以问答形式组织回答",
+        "对话式": "请以对话的方式展开回答",
+    }
+    lang_role = {
+        "中文": "请用中文回答",
+        "English": "Please respond in English",
+        "中英混合": "请根据内容需要灵活使用中英文",
+    }
+
+    # Pick best matching tone
+    tone_match = None
+    for key, val in tone_role.items():
+        if key in features:
+            tone_match = val
+            break
+
+    format_match = None
+    for key, val in format_role.items():
+        if key in features:
+            format_match = val
+            break
+
+    lang_match = None
+    for key, val in lang_role.items():
+        if key in features:
+            lang_match = val
+            break
+
+    parts = [tone_match] if tone_match else ["你是一个友好的助理"]
+    if format_match:
+        parts.append(format_match)
+    if lang_match:
+        parts.append(lang_match)
+
+    return "。".join(parts) + "。"
+
+
+def _build_default_prompt(intent):
+    """Build prompt when no style reference is provided."""
+    return (
+        f"你是一个友好的助理。请根据以下用户意图提供高质量的回应。\n\n"
+        f"用户意图：{intent}\n\n"
+        f"请直接给出回答，语言清晰、结构合理。"
+    )
+
+
+def _build_styled_prompt(intent, style_text, features):
+    """Build prompt incorporating style reference."""
+    role = _style_to_role(features)
+
+    # Truncate style text if too long (keep first 800 chars as reference)
+    ref = style_text[:800]
+    if len(style_text) > 800:
+        ref += "\n..."
+
+    return (
+        f"{role}\n\n"
+        f"以下是一段参考文本，请模仿其语气、格式和结构风格：\n"
+        f"```\n{ref}\n```\n\n"
+        f"用户意图：{intent}\n\n"
+        f"请根据用户意图，使用与参考文本一致的风格进行回应。不要提及你在模仿风格，直接给出内容。"
+    )
+
+
+def optimize_prompt(intent, style_text=None):
+    """Generate an optimized prompt based on intent and optional style reference.
 
     Args:
-        intent: User's intent description (required)
-        examples: List of example code strings (max 5 used)
-        role: Custom system role; defaults vary by format
-        output_format: "code" | "json" | "markdown" | "text"
-        constraints: Optional list of extra constraint strings
+        intent: User's task intent (required)
+        style_text: Optional style reference text for tone/format matching
+
+    Returns:
+        (prompt, style_features) tuple
     """
     sanitized_intent = str(intent).strip()
-    sanitized_examples = [str(item).strip() for item in examples if str(item).strip()][:5]
-    output_format = output_format if output_format in ("code", "json", "markdown", "text") else "code"
-    constraints = constraints if isinstance(constraints, list) else []
 
-    # ── Default role per format ──
-    default_roles = {
-        "code": "你是一个友好的代码助理。根据用户意图，生成可运行的 Python 示例。",
-        "json": "你是一个数据工程师。根据用户意图，输出严格的 JSON 格式数据，不要附带解释。",
-        "markdown": "你是一个技术文档专家。根据用户意图，输出格式良好的 Markdown 文档。",
-        "text": "你是一个精通技术沟通的助理。根据用户意图，用清晰的中文或英文给出解答。",
-    }
-    role_text = str(role).strip() if role else default_roles[output_format]
-
-    # ── Format instructions ──
-    format_instructions = {
-        "code": "请仅返回可运行的代码，不要解释。",
-        "json": "请仅返回合法的 JSON，不要包含注释或额外文字。",
-        "markdown": "请使用标准的 Markdown 语法返回内容，可包含代码块。",
-        "text": "请直接给出答案，不要多余的开场白。",
-    }
-    format_line = format_instructions.get(output_format, "")
-
-    # ── Examples block ──
-    num_examples = len(sanitized_examples)
-    if num_examples == 0:
-        examples_block = ""
-        shot_hint = "请根据你的知识直接生成，无需参考示例。"
+    if not style_text or not str(style_text).strip():
+        features = ["默认风格"]
+        prompt = _build_default_prompt(sanitized_intent)
     else:
-        ex_text = "\n".join(sanitized_examples)
-        examples_block = f"示例：\n{ex_text}"
-        shot_hint = "请参考以上示例的风格和结构进行生成。" if num_examples <= 2 else "请综合以上多个示例的模式进行生成。"
+        text = str(style_text).strip()
+        features = analyze_style(text)
+        prompt = _build_styled_prompt(sanitized_intent, text, features)
 
-    # ── Extra constraints ──
-    constraints_block = ""
-    if constraints:
-        constraints_block = "额外约束：\n" + "\n".join(f"- {c}" for c in constraints)
-
-    # ── Assemble ──
-    parts = [role_text]
-    if examples_block:
-        parts.append(examples_block)
-    parts.append(shot_hint)
-    parts.append(format_line)
-    if constraints_block:
-        parts.append(constraints_block)
-
-    # ═══ System message (for API consumption) ═══
-    system = role_text
-
-    # ═══ User message ═══
-    user_parts = [f"用户意图：{sanitized_intent}"]
-    if examples_block:
-        user_parts.append(examples_block)
-    if constraints_block:
-        user_parts.append(constraints_block)
-
-    prompt = "\n\n".join(parts)
-    user_text = "\n".join(user_parts)
-
-    return prompt, system, user_text, num_examples
+    return prompt, features
