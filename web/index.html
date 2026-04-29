@@ -3,7 +3,7 @@
 <body>
   <h3>Prompt Buddy</h3>
   <p>输入你的需求，系统会优化提示并返回示例代码。</p>
-  <textarea id="intent" rows="4" cols="60">列出读取文件并计算行数的 Python 示例</textarea><br/>
+  <textarea id="intent" rows="4" cols="60" maxlength="500">列出读取文件并计算行数的 Python 示例</textarea><br/>
   <textarea id="examples" rows="4" cols="60" placeholder="可选：每行一条示例"></textarea><br/>
   <button onclick="send()">生成</button>
   <button onclick="loadExamples()">加载默认示例</button>
@@ -20,6 +20,9 @@ async function loadExamples(){
   out.textContent = '加载中...';
   try{
     const r = await fetch('/api/examples');
+    if(!r.ok){
+      throw new Error('HTTP ' + r.status);
+    }
     const j = await r.json();
     document.getElementById('examples').value = (j.examples || []).join('\n');
     out.textContent = '已加载默认示例';
@@ -40,6 +43,10 @@ async function send(){
       body:JSON.stringify({intent, examples})
     });
     const j = await r.json();
+    if(!r.ok){
+      out.textContent = '请求失败: ' + (j.error || ('HTTP ' + r.status));
+      return;
+    }
     out.textContent = JSON.stringify(j,null,2);
   }catch(err){
     out.textContent = '请求失败: ' + err;

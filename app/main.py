@@ -13,13 +13,18 @@ EXAMPLES_FILE = BASE_DIR / "templates" / "example_prompts.json"
 
 
 app = Flask(__name__, static_folder=str(WEB_DIR))
+MAX_INTENT_LENGTH = 500
+MAX_EXAMPLES = 5
 
 
 def load_default_examples():
     if not EXAMPLES_FILE.exists():
         return []
-    with EXAMPLES_FILE.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with EXAMPLES_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError:
+        return []
     if not isinstance(data, list):
         return []
     examples = []
@@ -60,16 +65,24 @@ def generate():
     intent = str(data.get("intent", "")).strip()
     if not intent:
         return jsonify({"error": "intent 不能为空"}), 400
+    if len(intent) > MAX_INTENT_LENGTH:
+        return jsonify({"error": f"intent 长度不能超过 {MAX_INTENT_LENGTH} 个字符"}), 400
 
     examples_raw = data.get("examples", [])
     if examples_raw is None:
         examples_raw = []
     if not isinstance(examples_raw, list):
         return jsonify({"error": "examples 必须是字符串数组"}), 400
+    if len(examples_raw) > MAX_EXAMPLES:
+        return jsonify({"error": f"examples 最多允许 {MAX_EXAMPLES} 条"}), 400
+    if any(not isinstance(item, str) for item in examples_raw):
+        return jsonify({"error": "examples 必须是字符串数组"}), 400
 
-    examples = [str(item).strip() for item in examples_raw if str(item).strip()]
+    examples = [item.strip() for item in examples_raw if item.strip()]
+    used_default_examples = False
     if not examples:
-        examples = load_default_examples()
+        examples = load_default_examples()[:MAX_EXAMPLES]
+        used_default_examples = True
 
     prompt = optimize_prompt(intent, examples)
     model_output = build_mock_output(intent)
@@ -79,6 +92,11 @@ def generate():
         "output": model_output,
         "score": score,
         "issues": issues,
+        "meta": {
+            "engine": "mock",
+            "used_default_examples": used_default_examples,
+            "examples_count": len(examples),
+        },
     })
 
 

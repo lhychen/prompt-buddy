@@ -1,80 +1,130 @@
 # Prompt Buddy
 
-一个面向新手的 AI 提示工程演示项目：输入需求（intent）后，系统会自动优化提示词、生成模拟代码结果，并给出基础安全评分。项目结构简单、可快速运行，适合作为“AI 创作者申请”或作品集 Demo 上传 GitHub。
+Prompt Buddy 是一个轻量级 AI 提示工程演示项目，提供从输入需求到提示词构建、结果生成与规则校验的完整流程。
 
-## 项目目标
+## 功能概览
 
-解决的核心痛点：
-- 新手很难把自然语言需求转成稳定、可复用的提示词
-- 缺少“生成结果是否安全/可接受”的最小验证闭环
+- Web 页面输入 `intent` 与可选 `examples`
+- 后端生成标准化 prompt
+- 返回模拟代码输出（mock engine）
+- 对输出进行风险检测并打分
+- 提供默认示例与健康检查接口
 
-本项目提供一个最小但完整的流程：
-1. 前端收集用户 intent + 示例
-2. 后端优化提示词（Prompt Optimizer）
-3. 生成代码结果（当前为 Mock，可替换真实模型）
-4. 对结果进行规则校验并评分（Verifier）
+## 处理流程
 
-## 当前能力
+1. 前端提交 `intent` 与 `examples`
+2. 后端校验参数
+3. 参数缺省时加载默认示例
+4. Prompt Optimizer 生成 prompt
+5. 生成 mock 输出
+6. Verifier 执行规则检测并返回分数与问题列表
 
-- `POST /generate`
-  - 输入：`intent`（必填）、`examples`（可选）
-  - 输出：`prompt`、`output`、`score`、`issues`
-- `GET /api/examples`
-  - 返回默认示例（来自 `app/templates/example_prompts.json`）
-- `GET /healthz`
-  - 健康检查接口，返回 `{"status":"ok"}`
-- Web 页面
-  - 支持输入需求、加载默认示例、查看 JSON 结果
+## 接口说明
 
-## 技术栈
+### `GET /healthz`
 
-- Python 3
-- Flask 2.2.5
-- 原生 HTML + JavaScript（无前端框架）
+服务健康检查。
 
-## 目录结构
+响应示例：
+
+```json
+{ "status": "ok" }
+```
+
+### `GET /api/examples`
+
+返回默认示例列表（来自 `app/templates/example_prompts.json`）。
+
+响应示例：
+
+```json
+{
+  "examples": [
+    "with open('file.txt') as f:\n    print(len(f.readlines()))"
+  ]
+}
+```
+
+### `POST /generate`
+
+请求头：`Content-Type: application/json`
+
+请求体：
+
+```json
+{
+  "intent": "读取文件并统计行数",
+  "examples": ["with open('file.txt') as f: print(len(f.readlines()))"]
+}
+```
+
+字段约束：
+
+- `intent`：必填，字符串，最大 500 字符
+- `examples`：可选，字符串数组，最多 5 条
+
+成功响应示例：
+
+```json
+{
+  "prompt": "你是一个友好的代码助理。根据用户意图，生成可运行的 Python 示例。\n用户意图：读取文件并统计行数\n示例：\nwith open('file.txt') as f: print(len(f.readlines()))\n请仅返回代码，不要解释。",
+  "output": "# 模拟代码 for intent: 读取文件并统计行数\nprint('hello world')\n",
+  "score": 100,
+  "issues": [],
+  "meta": {
+    "engine": "mock",
+    "used_default_examples": false,
+    "examples_count": 1
+  }
+}
+```
+
+错误响应示例：
+
+```json
+{ "error": "intent 不能为空" }
+```
+
+## 风险评分规则
+
+`app/verifier.py` 当前规则：
+
+- 包含 `os.system` 或 `subprocess`：扣 50 分
+- 包含 `eval(` 或 `exec(`：扣 40 分
+- 输出长度过短：扣 20 分
+- 最低分为 0
+
+## 项目结构
 
 ```text
 prompt-buddy/
 ├─ app/
-│  ├─ main.py                     # 路由与接口入口
-│  ├─ prompt_optimizer.py         # 提示词优化逻辑
-│  ├─ verifier.py                 # 输出校验与评分
+│  ├─ main.py
+│  ├─ prompt_optimizer.py
+│  ├─ verifier.py
 │  └─ templates/
-│     └─ example_prompts.json     # 默认示例库
+│     └─ example_prompts.json
 ├─ web/
-│  └─ index.html                  # 演示前端
+│  └─ index.html
 ├─ requirements.txt
 ├─ .gitignore
-├─ init_repo.ps1                  # 一键初始化并推送 GitHub
+├─ init_repo.ps1
 └─ README.md
 ```
 
-## 快速开始（Windows PowerShell）
+## 本地运行（Windows PowerShell）
 
-1. 进入项目目录
-   ```powershell
-   Set-Location "C:\Users\chen\prompt-buddy"
-   ```
-2. 创建并激活虚拟环境
-   ```powershell
-   python -m venv venv
-   .\venv\Scripts\activate
-   ```
-3. 安装依赖
-   ```powershell
-   pip install -r requirements.txt
-   ```
-4. 启动服务
-   ```powershell
-   python app\main.py
-   ```
-5. 打开浏览器
-   - `http://127.0.0.1:5000`
+```powershell
+Set-Location "C:\Users\chen\prompt-buddy"
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+python app\main.py
+```
 
-## API 使用示例
+访问地址：`http://127.0.0.1:5000`
 
-### 1) 生成接口
+## PowerShell 调用示例
 
 ```powershell
 Invoke-RestMethod -Uri "http://127.0.0.1:5000/generate" `
@@ -86,70 +136,14 @@ Invoke-RestMethod -Uri "http://127.0.0.1:5000/generate" `
   })
 ```
 
-示例响应（节选）：
-
-```json
-{
-  "prompt": "...优化后的提示词...",
-  "output": "# 模拟代码 for intent: ...",
-  "score": 100,
-  "issues": []
-}
-```
-
-### 2) 获取默认示例
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/examples" -Method Get
-```
-
-### 3) 健康检查
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:5000/healthz" -Method Get
-```
-
-## 核心逻辑说明
-
-### Prompt Optimizer（`app/prompt_optimizer.py`）
-- 清洗 `intent` 与 `examples`
-- 限制示例数量（最多 5 条）
-- 拼装统一模板，输出可复用提示词
-
-### Verifier（`app/verifier.py`）
-- 检测高风险调用关键词（如 `os.system`、`subprocess`）
-- 检测动态执行（`eval` / `exec`）
-- 按规则扣分并输出问题列表
-
-### 默认示例回退机制（`app/main.py`）
-- 若调用 `/generate` 未提供 `examples`，自动加载 `example_prompts.json` 中示例，提升首用体验
-
-## 安全与限制
-
-- 当前 `output` 为 **Mock 结果**，未接入真实大模型 API
-- Verifier 是轻量规则引擎，不是完整安全沙箱
-- 不要将 API Key 明文写入代码；建议使用环境变量管理
-
-## 如何替换为真实模型（建议）
-
-在 `app/main.py` 的 `build_mock_output` 位置替换成真实 API 调用逻辑：
-- 读取环境变量中的模型密钥
-- 将 `prompt` 发送到模型接口
-- 把模型返回文本作为 `output`
-- 保留 `verify_output` 评分流程
-
-## 上传到 GitHub
-
-执行：
+## GitHub 推送脚本
 
 ```powershell
 .\init_repo.ps1 -RemoteUrl "https://github.com/<YOUR_USERNAME>/<YOUR_REPO>.git"
 ```
 
-脚本会自动完成：
-- `git init`
-- `git add -A`
-- `git commit`
-- 设置/更新 `origin`
+脚本执行内容：
+- 初始化或复用本地仓库
+- 提交当前变更
+- 设置或更新 `origin`
 - 推送到 `main`
-
