@@ -2,6 +2,8 @@ import json
 import logging
 import os
 import re
+import threading
+import webbrowser
 import sys
 import time
 import urllib.error
@@ -276,4 +278,11 @@ def generate():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
     debug = os.environ.get("FLASK_DEBUG", "1") == "1"
+
+    def _open_browser():
+        webbrowser.open(f"http://127.0.0.1:{port}")
+
+    threading.Timer(1.0, _open_browser).start()
+
+    print(f"\n  Prompt Buddy 已启动 → http://127.0.0.1:{port}\n")
     app.run(host="0.0.0.0", port=port, debug=debug)
