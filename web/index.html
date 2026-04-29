@@ -7,94 +7,97 @@
   <style>
     :root {
       --bg: #111318;
-      --panel: #171a21;
-      --panel-2: #1d212b;
-      --line: #2d3340;
-      --text: #e8ebf1;
-      --muted: #a5adbc;
-      --brand: #d87a58;
-      --ok: #66d191;
-      --bad: #f08a8a;
+      --panel: #181c24;
+      --panel-soft: #202633;
+      --line: #313a4a;
+      --text: #e8ecf4;
+      --muted: #a4afc3;
+      --primary: #de7d5a;
+      --primary-hover: #eb8965;
+      --success: #61d38f;
+      --danger: #e98585;
+      --shadow: 0 10px 32px rgba(0, 0, 0, .24);
     }
+
+    body[data-theme="light"] {
+      --bg: #eef1f7;
+      --panel: #ffffff;
+      --panel-soft: #f5f7fb;
+      --line: #d8dfec;
+      --text: #1e2430;
+      --muted: #647086;
+      --primary: #d46843;
+      --primary-hover: #c95b35;
+      --success: #2ea66a;
+      --danger: #d35656;
+      --shadow: 0 10px 28px rgba(39, 50, 77, .12);
+    }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      min-height: 100vh;
+      background: radial-gradient(circle at top left, #1b2230, var(--bg) 45%);
       color: var(--text);
-      background: radial-gradient(circle at left top, #1a1f29, var(--bg) 45%);
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
     }
+
     .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
       display: grid;
-      grid-template-columns: 260px 1fr;
-      min-height: 100vh;
+      gap: 14px;
     }
-    .left {
-      border-right: 1px solid var(--line);
-      background: #0f1116;
-      padding: 16px;
+
+    .topbar {
       display: flex;
-      flex-direction: column;
-      gap: 12px;
+      align-items: center;
+      gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
     }
+
     .title {
       font-weight: 700;
-      font-size: 16px;
-      padding: 10px 12px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: var(--panel);
+      font-size: 18px;
+      letter-spacing: .3px;
     }
+
     .status {
-      display: flex;
+      margin-left: auto;
+      display: inline-flex;
       align-items: center;
       gap: 8px;
       font-size: 12px;
       color: var(--muted);
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 6px 10px;
-      width: fit-content;
     }
+
     .dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--ok);
-      box-shadow: 0 0 8px var(--ok);
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
     }
-    .info {
-      margin-top: auto;
-      border-top: 1px solid var(--line);
-      padding-top: 12px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.55;
-    }
-    .main {
-      display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 12px;
-      padding: 14px;
-    }
-    .topbar {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 12px 14px;
-      background: rgba(16, 19, 25, .55);
-      font-weight: 600;
-    }
-    .input-grid {
+
+    .workspace {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 14px;
     }
+
     .card {
-      border: 1px solid var(--line);
-      border-radius: 12px;
       background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
       padding: 12px;
+      box-shadow: var(--shadow);
     }
+
     .card h3 {
       margin: 0 0 10px;
       font-size: 13px;
@@ -102,207 +105,415 @@
       text-transform: uppercase;
       letter-spacing: .35px;
     }
-    textarea, pre {
+
+    textarea, pre, .meta-panel {
       width: 100%;
-      margin: 0;
-      background: var(--panel-2);
-      color: var(--text);
       border: 1px solid var(--line);
       border-radius: 10px;
-      padding: 10px;
-      outline: none;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 12px;
-      line-height: 1.45;
-    }
-    textarea { resize: vertical; min-height: 112px; }
-    textarea:focus { border-color: #7e85a0; }
-    .actions {
-      grid-column: 1 / -1;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    button {
-      border: 1px solid var(--line);
-      background: var(--panel-2);
+      background: var(--panel-soft);
       color: var(--text);
-      border-radius: 9px;
-      padding: 8px 13px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    button.primary {
-      background: var(--brand);
-      border-color: var(--brand);
-      color: #21130f;
-    }
-    .hint {
-      margin-left: auto;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .result-grid {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      gap: 10px;
-      min-height: 0;
-    }
-    .stack {
-      display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 10px;
-      min-height: 0;
-    }
-    .kvs {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 8px 10px;
+      margin: 0;
+      padding: 10px;
       font-size: 13px;
+      line-height: 1.5;
     }
-    .kvs .k { color: var(--muted); }
-    .pill {
-      display: inline-block;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 12px;
-      color: var(--muted);
-      margin-right: 6px;
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+      outline: none;
+      font-family: ui-monospace, Consolas, monospace;
     }
-    .pill.good { color: var(--ok); border-color: #2f6f4c; }
-    .pill.bad { color: var(--bad); border-color: #704545; }
-    .code {
-      height: 100%;
-      min-height: 260px;
+
+    pre {
+      min-height: 170px;
+      max-height: 300px;
       overflow: auto;
       white-space: pre-wrap;
       word-break: break-word;
+      font-family: ui-monospace, Consolas, monospace;
     }
-    .msg {
+
+    .actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+
+    button.primary {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #2b130c;
+    }
+
+    button.primary:hover { background: var(--primary-hover); }
+    button.ghost { color: var(--muted); }
+
+    .hint { margin-left: auto; color: var(--muted); font-size: 12px; }
+    .danger { color: var(--danger); }
+
+    .result-grid {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 10px;
+    }
+
+    .meta-panel {
+      min-height: 120px;
+      font-size: 12px;
       color: var(--muted);
-      font-size: 13px;
     }
-    @media (max-width: 1080px) {
-      .app { grid-template-columns: 1fr; }
-      .left { display: none; }
-      .input-grid, .result-grid { grid-template-columns: 1fr; }
-      .stack { grid-template-rows: auto auto auto; }
+
+    .meta-list {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 10px;
+    }
+
+    .meta-list .k { color: var(--muted); }
+    .meta-list .v { color: var(--text); }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 10;
+    }
+
+    .overlay.show { display: flex; }
+
+    .modal {
+      width: min(780px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-soft);
+    }
+
+    .tab-btn {
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+      padding: 10px 14px;
+      color: var(--muted);
+    }
+
+    .tab-btn.active {
+      color: var(--text);
+      background: var(--panel);
+    }
+
+    .tab {
+      display: none;
+      padding: 12px;
+      gap: 10px;
+    }
+
+    .tab.active { display: grid; }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+      display: grid;
+      gap: 6px;
+    }
+
+    input, select {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel-soft);
+      color: var(--text);
+      padding: 8px 10px;
+      outline: none;
+    }
+
+    .model-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .modal-actions {
+      border-top: 1px solid var(--line);
+      padding: 10px 12px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    @media (max-width: 980px) {
+      .workspace, .result-grid {
+        grid-template-columns: 1fr;
+      }
       .hint { margin-left: 0; }
     }
   </style>
 </head>
-<body>
+<body data-theme="dark">
   <div class="app">
-    <aside class="left">
-      <div class="title">Prompt Buddy</div>
-      <div class="status"><span class="dot"></span><span id="healthLabel">检查服务状态中</span></div>
-      <div class="info">
-        功能模块：
-        <br>- Prompt 优化
-        <br>- 代码生成（Mock）
-        <br>- 风险评分与问题检测
-        <br>- 元数据回显
-      </div>
-    </aside>
+    <header class="topbar">
+      <div class="title">Prompt Buddy 控制台</div>
+      <button class="ghost" onclick="openSettings()">设置</button>
+      <div class="status"><span class="dot"></span><span id="healthLabel">检查服务中...</span></div>
+    </header>
 
-    <main class="main">
-      <div class="topbar">Prompt Pipeline Dashboard</div>
-
-      <section class="input-grid">
-        <div class="card">
-          <h3>Intent 输入</h3>
+    <section class="workspace">
+      <div class="card">
+        <h3>输入区</h3>
+        <label>任务意图（Intent）
           <textarea id="intent" maxlength="500">列出读取文件并计算行数的 Python 示例</textarea>
-        </div>
-        <div class="card">
-          <h3>Examples 输入（每行一条，最多5条）</h3>
+        </label>
+        <label>示例（Examples，每行一条，最多 5 条）
           <textarea id="examples" placeholder="with open('file.txt') as f:&#10;    print(len(f.readlines()))"></textarea>
-        </div>
+        </label>
         <div class="actions">
-          <button class="primary" id="runBtn" onclick="runGenerate()">执行 /generate</button>
-          <button onclick="loadExamples()">加载 /api/examples</button>
-          <button onclick="clearResult()">清空结果</button>
+          <button class="primary" id="runBtn" onclick="runGenerate()">生成</button>
+          <button onclick="loadExamples()">加载默认示例</button>
+          <button class="ghost" onclick="clearResult()">清空结果</button>
           <span class="hint" id="countHint">0/500</span>
         </div>
-      </section>
+      </div>
 
-      <section class="result-grid">
-        <div class="stack">
-          <div class="card">
-            <h3>评分与问题</h3>
-            <div class="kvs">
-              <div class="k">score</div><div id="scoreValue">-</div>
-              <div class="k">issues</div><div id="issuesValue">[]</div>
-            </div>
-          </div>
-          <div class="card">
-            <h3>meta</h3>
-            <div id="metaTags">-</div>
-          </div>
-          <div class="card">
-            <h3>请求/状态</h3>
-            <div class="msg" id="statusMsg">等待执行</div>
+      <div class="card">
+        <h3>运行信息</h3>
+        <div class="meta-panel">
+          <div class="meta-list">
+            <div class="k">状态</div><div class="v" id="statusMsg">等待执行</div>
+            <div class="k">评分</div><div class="v" id="scoreValue">-</div>
+            <div class="k">风险问题</div><div class="v" id="issuesValue">[]</div>
+            <div class="k">引擎</div><div class="v" id="engineValue">-</div>
+            <div class="k">模型</div><div class="v" id="modelValue">-</div>
+            <div class="k">示例来源</div><div class="v" id="exampleSourceValue">-</div>
           </div>
         </div>
-        <div class="stack">
-          <div class="card">
-            <h3>优化后的 Prompt</h3>
-            <pre class="code" id="promptOut"></pre>
+      </div>
+    </section>
+
+    <section class="result-grid">
+      <div class="card">
+        <h3>优化后的 Prompt</h3>
+        <pre id="promptOut"></pre>
+      </div>
+      <div class="card">
+        <h3>生成输出</h3>
+        <pre id="outputOut"></pre>
+      </div>
+    </section>
+  </div>
+
+  <div class="overlay" id="settingsOverlay">
+    <div class="modal">
+      <div class="modal-head">
+        <strong>系统设置</strong>
+        <button class="ghost" onclick="closeSettings()">关闭</button>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="modelTab" onclick="switchTab(event)">模型管理</button>
+        <button class="tab-btn" data-tab="apiTab" onclick="switchTab(event)">API 接入</button>
+        <button class="tab-btn" data-tab="themeTab" onclick="switchTab(event)">主题</button>
+      </div>
+
+      <div class="tab active" id="modelTab">
+        <label>模型名称
+          <div class="model-row">
+            <input id="modelNameInput" type="text" maxlength="100" placeholder="gpt-4o-mini">
+            <select id="modelPreset" onchange="applyModelPreset()">
+              <option value="">选择预设</option>
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+              <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+              <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
+            </select>
           </div>
-          <div class="card">
-            <h3>生成输出</h3>
-            <pre class="code" id="outputOut"></pre>
-          </div>
-        </div>
-      </section>
-    </main>
+        </label>
+      </div>
+
+      <div class="tab" id="apiTab">
+        <label><input id="apiEnabledInput" type="checkbox"> 启用 API 模型接入（关闭时使用 Mock）</label>
+        <label>API 密钥
+          <input id="apiKeyInput" type="password" maxlength="300" placeholder="请输入 API Key">
+        </label>
+        <label>Base URL
+          <input id="baseUrlInput" type="text" placeholder="https://api.openai.com/v1">
+        </label>
+      </div>
+
+      <div class="tab" id="themeTab">
+        <label>界面主题
+          <select id="themeSelectInput">
+            <option value="dark">深色</option>
+            <option value="light">浅色</option>
+            <option value="system">跟随系统</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="ghost" onclick="resetSettings()">恢复默认</button>
+        <button class="primary" onclick="saveSettings()">保存设置</button>
+      </div>
+    </div>
   </div>
 
   <script>
+    const STORAGE_KEY = "prompt-buddy.settings";
+    const defaultSettings = {
+      apiEnabled: false,
+      apiKey: "",
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-4o-mini",
+      theme: "dark"
+    };
+
     const intentEl = document.getElementById("intent");
     const examplesEl = document.getElementById("examples");
+    const runBtn = document.getElementById("runBtn");
     const countHint = document.getElementById("countHint");
     const healthLabel = document.getElementById("healthLabel");
     const statusMsg = document.getElementById("statusMsg");
     const scoreValue = document.getElementById("scoreValue");
     const issuesValue = document.getElementById("issuesValue");
-    const metaTags = document.getElementById("metaTags");
+    const engineValue = document.getElementById("engineValue");
+    const modelValue = document.getElementById("modelValue");
+    const exampleSourceValue = document.getElementById("exampleSourceValue");
     const promptOut = document.getElementById("promptOut");
     const outputOut = document.getElementById("outputOut");
-    const runBtn = document.getElementById("runBtn");
+    const overlay = document.getElementById("settingsOverlay");
+
+    const apiEnabledInput = document.getElementById("apiEnabledInput");
+    const apiKeyInput = document.getElementById("apiKeyInput");
+    const baseUrlInput = document.getElementById("baseUrlInput");
+    const modelNameInput = document.getElementById("modelNameInput");
+    const modelPreset = document.getElementById("modelPreset");
+    const themeSelectInput = document.getElementById("themeSelectInput");
+
+    let settings = loadSettings();
+
+    function loadSettings() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        return { ...defaultSettings, ...stored };
+      } catch {
+        return { ...defaultSettings };
+      }
+    }
+
+    function persistSettings() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    }
+
+    function getEffectiveTheme(theme) {
+      if (theme !== "system") return theme;
+      return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    }
+
+    function applyTheme(theme) {
+      document.body.setAttribute("data-theme", getEffectiveTheme(theme));
+    }
 
     function updateCount() {
       countHint.textContent = `${intentEl.value.length}/500`;
     }
 
     function parseExamples() {
-      return examplesEl.value
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .slice(0, 5);
+      return examplesEl.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 5);
     }
 
-    function renderMeta(meta = {}) {
-      const tags = [];
-      if (meta.engine) tags.push(`<span class="pill">${meta.engine}</span>`);
-      if (typeof meta.examples_count === "number") tags.push(`<span class="pill">examples:${meta.examples_count}</span>`);
-      if (meta.used_default_examples === true) {
-        tags.push(`<span class="pill good">default examples</span>`);
-      } else if (meta.used_default_examples === false) {
-        tags.push(`<span class="pill">custom examples</span>`);
-      }
-      metaTags.innerHTML = tags.length ? tags.join("") : "-";
+    function fillSettingsForm() {
+      apiEnabledInput.checked = !!settings.apiEnabled;
+      apiKeyInput.value = settings.apiKey || "";
+      baseUrlInput.value = settings.baseUrl || "";
+      modelNameInput.value = settings.model || "";
+      themeSelectInput.value = settings.theme || "dark";
+      modelPreset.value = "";
     }
 
     function clearResult() {
+      statusMsg.textContent = "等待执行";
       scoreValue.textContent = "-";
       issuesValue.textContent = "[]";
-      metaTags.textContent = "-";
+      engineValue.textContent = "-";
+      modelValue.textContent = "-";
+      exampleSourceValue.textContent = "-";
       promptOut.textContent = "";
       outputOut.textContent = "";
-      statusMsg.textContent = "等待执行";
+    }
+
+    function openSettings() {
+      fillSettingsForm();
+      overlay.classList.add("show");
+    }
+
+    function closeSettings() {
+      overlay.classList.remove("show");
+    }
+
+    function switchTab(event) {
+      const tabId = event.currentTarget.dataset.tab;
+      document.querySelectorAll(".tab-btn").forEach((el) => el.classList.remove("active"));
+      document.querySelectorAll(".tab").forEach((el) => el.classList.remove("active"));
+      event.currentTarget.classList.add("active");
+      document.getElementById(tabId).classList.add("active");
+    }
+
+    function applyModelPreset() {
+      if (modelPreset.value) modelNameInput.value = modelPreset.value;
+    }
+
+    function resetSettings() {
+      settings = { ...defaultSettings };
+      persistSettings();
+      applyTheme(settings.theme);
+      fillSettingsForm();
+    }
+
+    function saveSettings() {
+      settings = {
+        apiEnabled: apiEnabledInput.checked,
+        apiKey: apiKeyInput.value.trim(),
+        baseUrl: baseUrlInput.value.trim() || defaultSettings.baseUrl,
+        model: modelNameInput.value.trim() || defaultSettings.model,
+        theme: themeSelectInput.value
+      };
+      persistSettings();
+      applyTheme(settings.theme);
+      closeSettings();
+      statusMsg.textContent = "设置已保存";
     }
 
     async function checkHealth() {
@@ -311,7 +522,7 @@
         if (!r.ok) throw new Error("HTTP " + r.status);
         const data = await r.json();
         healthLabel.textContent = data.status === "ok" ? "服务正常" : "服务异常";
-      } catch (err) {
+      } catch {
         healthLabel.textContent = "服务不可用";
       }
     }
@@ -333,35 +544,57 @@
       const intent = intentEl.value.trim();
       const examples = parseExamples();
       runBtn.disabled = true;
-      statusMsg.textContent = "请求 /generate 中...";
+      statusMsg.textContent = "生成中...";
       try {
+        const payload = {
+          intent,
+          examples,
+          settings: {
+            apiEnabled: settings.apiEnabled,
+            apiKey: settings.apiKey,
+            baseUrl: settings.baseUrl,
+            model: settings.model
+          }
+        };
         const r = await fetch("/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ intent, examples })
+          body: JSON.stringify(payload)
         });
         const data = await r.json();
         if (!r.ok) {
-          statusMsg.textContent = "请求失败: " + (data.error || ("HTTP " + r.status));
+          statusMsg.innerHTML = `<span class="danger">请求失败: ${data.error || ("HTTP " + r.status)}</span>`;
           return;
         }
+
         scoreValue.textContent = String(data.score ?? "-");
         issuesValue.textContent = JSON.stringify(data.issues || []);
-        renderMeta(data.meta || {});
+        engineValue.textContent = data.meta?.engine || "-";
+        modelValue.textContent = data.meta?.model || "-";
+        exampleSourceValue.textContent = data.meta?.used_default_examples ? "默认示例" : "自定义示例";
         promptOut.textContent = data.prompt || "";
         outputOut.textContent = data.output || "";
         statusMsg.textContent = "执行完成";
       } catch (err) {
-        statusMsg.textContent = "请求异常: " + err;
+        statusMsg.innerHTML = `<span class="danger">请求异常: ${err}</span>`;
       } finally {
         runBtn.disabled = false;
       }
     }
 
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) closeSettings();
+    });
+
     intentEl.addEventListener("input", updateCount);
+    window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+      if (settings.theme === "system") applyTheme("system");
+    });
+
+    applyTheme(settings.theme);
+    clearResult();
     updateCount();
     checkHealth();
-    clearResult();
   </script>
 </body>
 </html>
