@@ -1,0 +1,6 @@
+[
+  {
+    "intent": "读取文件并计算行数",
+    "examples": ["with open('file.txt') as f:\n    print(len(f.readlines()))"]
+  }
+]

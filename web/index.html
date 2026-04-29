@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<body>
+  <h3>Prompt Buddy</h3>
+  <p>输入你的需求，系统会优化提示并返回示例代码。</p>
+  <textarea id="intent" rows="4" cols="60">列出读取文件并计算行数的 Python 示例</textarea><br/>
+  <textarea id="examples" rows="4" cols="60" placeholder="可选：每行一条示例"></textarea><br/>
+  <button onclick="send()">生成</button>
+  <button onclick="loadExamples()">加载默认示例</button>
+  <pre id="out"></pre>
+<script>
+function getExamples(){
+  const text = document.getElementById('examples').value.trim();
+  if (!text) return [];
+  return text.split('\n').map(s => s.trim()).filter(Boolean);
+}
+
+async function loadExamples(){
+  const out = document.getElementById('out');
+  out.textContent = '加载中...';
+  try{
+    const r = await fetch('/api/examples');
+    const j = await r.json();
+    document.getElementById('examples').value = (j.examples || []).join('\n');
+    out.textContent = '已加载默认示例';
+  }catch(err){
+    out.textContent = '加载示例失败: ' + err;
+  }
+}
+
+async function send(){
+  const out = document.getElementById('out');
+  const intent = document.getElementById('intent').value;
+  const examples = getExamples();
+  out.textContent = '生成中...';
+  try{
+    const r = await fetch('/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({intent, examples})
+    });
+    const j = await r.json();
+    out.textContent = JSON.stringify(j,null,2);
+  }catch(err){
+    out.textContent = '请求失败: ' + err;
+  }
+}
+</script>
+</body>
+</html>
